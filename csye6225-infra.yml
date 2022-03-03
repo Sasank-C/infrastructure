@@ -1,6 +1,6 @@
 Description: >-
-  Cloudformation template to deploy an EC2 instance with a VPC, with 3 public subnets spread across 3
-  Availability Zones and a Security Group. It deploys an instance, internet gateway, with a default route on
+  Cloudformation template to deploy a VPC, with 3 public subnets spread across 3
+  Availability Zones. It deploys an internet gateway, with a default route on
   the public subnets.
 Parameters:
   EnvironmentName:
