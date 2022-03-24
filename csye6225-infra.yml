@@ -58,6 +58,11 @@ Parameters:
     Default: csye6225
     Type: String
     Description: Database Name
+
+  DNSName:
+    Default: "dev.sasank.io."
+    Type: String
+    Description: DNS Name
   
 Resources:
   VPC:
@@ -206,19 +211,19 @@ Resources:
       SubnetId: !Ref PublicSubnet3
       RouteTableId: !Ref PublicRouteTable
 
-  ApplicationSecurityGroup:
+  WebAppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow http/Https and ssh to Ec2
+      GroupDescription: Allow HTTP, HTTPS, SSH and Webapp to EC2
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
+        #- IpProtocol: tcp
+        #  FromPort: 80
+        #  ToPort: 80
+        #  CidrIp: 0.0.0.0/0
+        #- IpProtocol: tcp
+        #  FromPort: 443
+        #  ToPort: 443
+        #  CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
@@ -226,7 +231,8 @@ Resources:
         - IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
-          CidrIp: 0.0.0.0/0
+          #CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
       VpcId: !Ref VPC
       Tags:
         - Key: Name
@@ -244,7 +250,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 3306
           ToPort: 3306
-          SourceSecurityGroupId: !Ref ApplicationSecurityGroup
+          SourceSecurityGroupId: !Ref WebAppSecurityGroup
       Tags:
         - Key: Name
           Value: database
@@ -358,20 +364,185 @@ Resources:
       Roles:
         - Ref: RootRole
 
-  MyEC2Instance:
-    Type: AWS::EC2::Instance
+  # MyEC2Instance:
+  #   Type: AWS::EC2::Instance
+  #   Properties:
+  #     IamInstanceProfile: !Ref DemoInstanceProfile
+  #     ImageId: !Ref AMIImage
+  #     InstanceType: t2.micro
+  #     KeyName: testkey
+  #     NetworkInterfaces:
+  #       - AssociatePublicIpAddress: "true"
+  #         DeviceIndex: "0"
+  #         GroupSet:
+  #           - Ref: WebAppSecurityGroup
+  #         SubnetId:
+  #           Ref: PublicSubnet1
+  #     UserData:
+  #       Fn::Base64: !Sub |
+  #         #!/bin/bash
+  #         echo export RDS="${RDSInstance.Endpoint.Address}" >> /etc/environment
+  #         echo export DB_HOST="${RDSInstance.Endpoint.Address}" >> /etc/environment
+  #         echo export DB_USER="csye6225" >> /etc/environment
+  #         echo export SQL_ROOT="csye6225" >> /etc/environment
+  #         echo export SQL_PASS="${DBPassword}" >> /etc/environment
+  #         echo export DB_PASSWORD="${DBPassword}" >> /etc/environment
+  #         echo export DB_NAME="${DBName}" >> /etc/environment
+  #         echo export bucket="${S3bucket}" >> /etc/environment 
+  #         echo export AWS_BUCKET_NAME="${S3bucket}" >> /etc/environment
+  #         echo export AWS_BUCKET_REGION="us-east-1" >> /etc/environment
+  #         echo export AWS_REGION="us-east-1" >> /etc/environment
+  #         echo export DB="csye6225" >> /etc/environment
+  #         echo export region="us-east-1" >> /etc/environment
+  #         sleep 10
+  #         sudo pm2 restart all --update-env
+
+
+  LoadBalancerSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Load Balancer Security Group
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: 0.0.0.0/0
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: 0.0.0.0/0
+        Tags:
+          - Key: Name
+            Value: Load Balancer
+        VpcId: !Ref VPC
+
+  WebServerAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      IamInstanceProfile: !Ref DemoInstanceProfile
-      ImageId: !Ref AMIImage
+      AutoScalingGroupName: WebServerAutoScalingGroup
+      Cooldown: 60
+      LaunchConfigurationName: !Ref asglaunchconfig
+      MinSize: "3"
+      MaxSize: "5"
+      DesiredCapacity: "3"
+      VPCZoneIdentifier:
+      - !Ref PublicSubnet1
+      - !Ref PublicSubnet2
+      - !Ref PublicSubnet3
+      TargetGroupARNs:
+      - !Ref LoadBalancerTargetGroup
+      Tags:
+        - Key: Name
+          Value: Web Server Autoscaling Group
+          PropagateAtLaunch: "true"
+
+  LoadBalancer:
+    DependsOn: InternetGatewayAttach
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: ApplicationLoadBalancer
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+        - !Ref PublicSubnet3
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Type: application
+
+  LoadBalancerTargetGroup:
+    DependsOn: LoadBalancer
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /healthz
+      # HealthCheckTimeoutSeconds: 5
+      Name: LoadBalancerTargetGroup
+      HealthyThresholdCount: 3
+      Port: 3000
+      Protocol: HTTP
+      UnhealthyThresholdCount: 4
+      Matcher:
+        HttpCode: "200"
+      VpcId: !Ref VPC
+      TargetType: instance
+      Tags:
+        - Key: Name
+          Value: LoadBalancerTargetGroup
+
+  LoadBalancerListenerHTTP:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            Ref: LoadBalancerTargetGroup
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: "80"
+      Protocol: HTTP
+
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: "1"
+      Statistic: Average
+      Threshold: "5"
+      AlarmDescription: Alarm if CPU utilization more than 5%
+      Period: "300"
+      AlarmActions:
+      - !Ref ScaleOutPolicy
+      Namespace: AWS/EC2
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref WebServerAutoScalingGroup
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: "1"
+      Statistic: Average
+      Threshold: "3"
+      AlarmDescription: Alarm if CPU utilization is less than 3%
+      Period: "300"
+      AlarmActions:
+      - !Ref ScaleInPolicy
+      Namespace: AWS/EC2
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref WebServerAutoScalingGroup
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization
+
+  ScaleOutPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref WebServerAutoScalingGroup
+      Cooldown: 60
+      ScalingAdjustment: 1
+
+  ScaleInPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref WebServerAutoScalingGroup
+      Cooldown: 60
+      ScalingAdjustment: -1
+
+  asglaunchconfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: "true"
       InstanceType: t2.micro
       KeyName: testkey
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: "true"
-          DeviceIndex: "0"
-          GroupSet:
-            - Ref: ApplicationSecurityGroup
-          SubnetId:
-            Ref: PublicSubnet1
+      ImageId: !Ref AMIImage
+      IamInstanceProfile: !Ref DemoInstanceProfile
+      SecurityGroups:
+        - !Ref WebAppSecurityGroup
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -390,3 +561,15 @@ Resources:
           echo export region="us-east-1" >> /etc/environment
           sleep 10
           sudo pm2 restart all --update-env
+
+  DNSRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Ref DNSName
+      Comment: Zone apex alias targeted to LoadBalancer.
+      RecordSets:
+        - Name: !Ref DNSName
+          Type: A
+          AliasTarget:
+            HostedZoneId: !GetAtt "LoadBalancer.CanonicalHostedZoneID"
+            DNSName: !GetAtt "LoadBalancer.DNSName"
