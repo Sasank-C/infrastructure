@@ -821,26 +821,32 @@ Resources:
         Description: Function to store token in dynamodb and send email to SNS
 
   DynamodbTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        AttributeDefinitions:
-          - 
-            AttributeName: "email"
-            AttributeType: "S"
-        KeySchema:
-          - 
-            AttributeName: "email"
-            KeyType: "HASH"
-        ProvisionedThroughput: 
-          ReadCapacityUnits: 10
-          WriteCapacityUnits: 5
-        TableName: csye6225
-        TimeToLiveSpecification:
-          AttributeName: email
-          Enabled: true
-        Tags:
-          - Key: key
-            Value: value
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - 
+          AttributeName: "Email"
+          AttributeType: "S"
+        - 
+          AttributeName: "TokenName"
+          AttributeType: "S"
+      KeySchema:
+        - 
+          AttributeName: "Email"
+          KeyType: "HASH"
+        - 
+          AttributeName: "TokenName"
+          KeyType: "RANGE"
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 10
+        WriteCapacityUnits: 5
+      TableName: csye-6225
+      TimeToLiveSpecification:
+        AttributeName: TimeToLive
+        Enabled: true
+      Tags:
+        - Key: key
+          Value: value
 
   LambdaRole:
       Type: AWS::IAM::Role
