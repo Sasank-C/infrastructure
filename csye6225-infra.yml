@@ -438,9 +438,10 @@ Resources:
       MinSize: "1"
       MaxSize: "5"
       DesiredCapacity: "1"
-      LaunchTemplate: 
-        LaunchTemplateId: !Ref LaunchTemplate 
-        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      LaunchConfigurationName: !Ref asglaunchconfig
+      # LaunchTemplate: 
+      #   LaunchTemplateId: !Ref LaunchTemplate 
+      #   Version: !GetAtt LaunchTemplate.LatestVersionNumber
       VPCZoneIdentifier:
       - !Ref PublicSubnet1
       - !Ref PublicSubnet2
@@ -559,77 +560,77 @@ Resources:
       Cooldown: 60
       ScalingAdjustment: -1
 
-  # asglaunchconfig:
-  #   Type: AWS::AutoScaling::LaunchConfiguration
-  #   Properties:
-  #     AssociatePublicIpAddress: "true"
-  #     InstanceType: t2.micro
-  #     Encrypted: true
-  #     KmsKeyId: !Ref EbsKmsKey 
-  #     KeyName: testkey
-  #     ImageId: !Ref AMIImage
-  #     IamInstanceProfile: !Ref DemoInstanceProfile
-  #     SecurityGroups:
-  #       - !Ref WebAppSecurityGroup
-  #     UserData:
-  #       Fn::Base64: !Sub |
-  #         #!/bin/bash
-  #         echo export RDS="${RDSInstance.Endpoint.Address}" >> /etc/environment
-  #         echo export DB_HOST="${RDSInstance.Endpoint.Address}" >> /etc/environment
-  #         echo export DB_USER="csye6225" >> /etc/environment
-  #         echo export SQL_ROOT="csye6225" >> /etc/environment
-  #         echo export SQL_PASS="${DBPassword}" >> /etc/environment
-  #         echo export DB_PASSWORD="${DBPassword}" >> /etc/environment
-  #         echo export DB_NAME="${DBName}" >> /etc/environment
-  #         echo export bucket="${S3bucket}" >> /etc/environment 
-  #         echo export AWS_BUCKET_NAME="${S3bucket}" >> /etc/environment
-  #         echo export AWS_BUCKET_REGION="us-east-1" >> /etc/environment
-  #         echo export AWS_REGION="us-east-1" >> /etc/environment
-  #         echo export DB="csye6225" >> /etc/environment
-  #         echo export region="us-east-1" >> /etc/environment
-  #         sleep 10
-  #         sudo pm2 restart all --update-env
+  asglaunchconfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: "true"
+      InstanceType: t2.micro
+      Encrypted: true
+      KmsKeyId: !Ref EbsKmsKey 
+      KeyName: testkey
+      ImageId: !Ref AMIImage
+      IamInstanceProfile: !Ref DemoInstanceProfile
+      SecurityGroups:
+        - !Ref WebAppSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          echo export RDS="${RDSInstance.Endpoint.Address}" >> /etc/environment
+          echo export DB_HOST="${RDSInstance.Endpoint.Address}" >> /etc/environment
+          echo export DB_USER="csye6225" >> /etc/environment
+          echo export SQL_ROOT="csye6225" >> /etc/environment
+          echo export SQL_PASS="${DBPassword}" >> /etc/environment
+          echo export DB_PASSWORD="${DBPassword}" >> /etc/environment
+          echo export DB_NAME="${DBName}" >> /etc/environment
+          echo export bucket="${S3bucket}" >> /etc/environment 
+          echo export AWS_BUCKET_NAME="${S3bucket}" >> /etc/environment
+          echo export AWS_BUCKET_REGION="us-east-1" >> /etc/environment
+          echo export AWS_REGION="us-east-1" >> /etc/environment
+          echo export DB="csye6225" >> /etc/environment
+          echo export region="us-east-1" >> /etc/environment
+          sleep 10
+          sudo pm2 restart all --update-env
 
-  LaunchTemplate: 
-    Type: AWS::EC2::LaunchTemplate  
-    Properties: 
-      LaunchTemplateName: LaunchTemplate  
-      LaunchTemplateData: 
-        IamInstanceProfile: 
-          Arn: !GetAtt  
-            - DemoInstanceProfile  
-            - Arn 
-        ImageId: !Ref AMIImage 
-        InstanceType: t2.micro 
-        KeyName: testkey 
-        SecurityGroupIds: 
-          - !Ref WebAppSecurityGroup 
-        BlockDeviceMappings:  
-          - DeviceName: "/dev/sdm"  
-            Ebs:  
-              VolumeSize: 20  
-              VolumeType: "gp2" 
-              DeleteOnTermination: true 
-              Encrypted: true 
-              KmsKeyId: !GetAtt EBSKmsKey.Arn 
-        UserData:   
-          Fn::Base64: !Sub |
-                    #!/bin/bash
-                    echo export RDS="${RDSInstance.Endpoint.Address}" >> /etc/environment
-                    echo export DB_HOST="${RDSInstance.Endpoint.Address}" >> /etc/environment
-                    echo export DB_USER="csye6225" >> /etc/environment
-                    echo export SQL_ROOT="csye6225" >> /etc/environment
-                    echo export SQL_PASS="${DBPassword}" >> /etc/environment
-                    echo export DB_PASSWORD="${DBPassword}" >> /etc/environment
-                    echo export DB_NAME="${DBName}" >> /etc/environment
-                    echo export bucket="${S3bucket}" >> /etc/environment 
-                    echo export AWS_BUCKET_NAME="${S3bucket}" >> /etc/environment
-                    echo export AWS_BUCKET_REGION="us-east-1" >> /etc/environment
-                    echo export AWS_REGION="us-east-1" >> /etc/environment
-                    echo export DB="csye6225" >> /etc/environment
-                    echo export region="us-east-1" >> /etc/environment
-                    sleep 10
-                    sudo pm2 restart all --update-env
+  # LaunchTemplate: 
+  #   Type: AWS::EC2::LaunchTemplate  
+  #   Properties: 
+  #     LaunchTemplateName: LaunchTemplate  
+  #     LaunchTemplateData: 
+  #       IamInstanceProfile: 
+  #         Arn: !GetAtt  
+  #           - DemoInstanceProfile  
+  #           - Arn 
+  #       ImageId: !Ref AMIImage 
+  #       InstanceType: t2.micro 
+  #       KeyName: testkey 
+  #       SecurityGroupIds: 
+  #         - !Ref WebAppSecurityGroup 
+  #       BlockDeviceMappings:  
+  #         - DeviceName: "/dev/sdm"  
+  #           Ebs:  
+  #             VolumeSize: 20  
+  #             VolumeType: "gp2" 
+  #             DeleteOnTermination: true 
+  #             Encrypted: true 
+  #             KmsKeyId: !GetAtt EBSKmsKey.Arn 
+  #       UserData:   
+  #         Fn::Base64: !Sub |
+  #                   #!/bin/bash
+  #                   echo export RDS="${RDSInstance.Endpoint.Address}" >> /etc/environment
+  #                   echo export DB_HOST="${RDSInstance.Endpoint.Address}" >> /etc/environment
+  #                   echo export DB_USER="csye6225" >> /etc/environment
+  #                   echo export SQL_ROOT="csye6225" >> /etc/environment
+  #                   echo export SQL_PASS="${DBPassword}" >> /etc/environment
+  #                   echo export DB_PASSWORD="${DBPassword}" >> /etc/environment
+  #                   echo export DB_NAME="${DBName}" >> /etc/environment
+  #                   echo export bucket="${S3bucket}" >> /etc/environment 
+  #                   echo export AWS_BUCKET_NAME="${S3bucket}" >> /etc/environment
+  #                   echo export AWS_BUCKET_REGION="us-east-1" >> /etc/environment
+  #                   echo export AWS_REGION="us-east-1" >> /etc/environment
+  #                   echo export DB="csye6225" >> /etc/environment
+  #                   echo export region="us-east-1" >> /etc/environment
+  #                   sleep 10
+  #                   sudo pm2 restart all --update-env
 
 
   DNSRecord:
