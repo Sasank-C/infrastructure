@@ -566,7 +566,7 @@ Resources:
       AssociatePublicIpAddress: "true"
       InstanceType: t2.micro
       Encrypted: true
-      KmsKeyId: !Ref EBSKmsKey 
+      KmsKeyId: !Ref EBSKmsKey
       KeyName: testkey
       ImageId: !Ref AMIImage
       IamInstanceProfile: !Ref DemoInstanceProfile
