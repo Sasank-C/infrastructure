@@ -605,7 +605,7 @@ Resources:
         SecurityGroupIds: 
           - !Ref WebAppSecurityGroup 
         BlockDeviceMappings:  
-          - DeviceName: "/dev/xvda"  
+          - DeviceName: "/dev/sdm"  
             Ebs:  
               VolumeSize: 20  
               VolumeType: "gp2" 
